@@ -1,3 +1,97 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  * {
+    @apply border-dark-border;
+  }
+  
+  body {
+    @apply bg-dark-bg text-dark-text-primary font-sans antialiased;
+  }
+
+  h1, h2, h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  /* Button Styles */
+  .btn {
+    @apply px-6 py-3 rounded-button font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-gradient-primary text-white hover:shadow-glow hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn border border-primary text-primary hover:bg-primary/10;
+  }
+
+  .btn-ghost {
+    @apply btn text-dark-text-secondary hover:bg-dark-text-secondary/5;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-dark-card border border-dark-border rounded-card p-6 shadow-card transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:border-primary hover:shadow-card-hover hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  /* Input Styles */
+  .input {
+    @apply w-full bg-dark-bg border border-dark-border rounded-button px-4 py-3 text-body focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all;
+  }
+
+  /* Badge Styles */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-md text-caption font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-success/10 text-success border border-success/20;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning/10 text-warning border border-warning/20;
+  }
+
+  .badge-error {
+    @apply badge bg-error/10 text-error border border-error/20;
+  }
+
+  .badge-info {
+    @apply badge bg-info/10 text-info border border-info/20;
+  }
+
+  /* Progress Bar */
+  .progress-bar {
+    @apply w-full h-2 bg-dark-border rounded-full overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full bg-gradient-secondary transition-all duration-300;
+  }
+
+  /* Grid Pattern Background */
+  .grid-pattern {
+    background-image: 
+      linear-gradient(rgba(91, 79, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(91, 79, 255, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-primary bg-clip-text text-transparent;
+  }
+}

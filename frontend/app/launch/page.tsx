@@ -1,21 +1,22 @@
 'use client'
 import { useState, useRef } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
-import { parseEther, parseUnits } from 'viem';
+import { parseEther } from 'viem';
 import { FACTORY_ABI, FACTORY_ADDRESS } from '@/lib/contract';
 import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 
-export default function Launch() {
+export default function LaunchNew() {
+  const [step, setStep] = useState(1);
   const [agentName, setAgentName] = useState('');
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [description, setDescription] = useState('');
-  const [twitterLink, setTwitterLink] = useState('');
-  const [telegramLink, setTelegramLink] = useState('');
-  const [websiteLink, setWebsiteLink] = useState('');
   const [coinImage, setCoinImage] = useState<string | null>(null);
-  const [bannerImage, setBannerImage] = useState<string | null>(null);
-  const [devBuyAmount, setDevBuyAmount] = useState('');
+  const [devBuyAmount, setDevBuyAmount] = useState('0.1');
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
@@ -24,7 +25,6 @@ export default function Launch() {
   const [deadline, setDeadline] = useState(0);
   
   const coinImageInputRef = useRef<HTMLInputElement>(null);
-  const bannerImageInputRef = useRef<HTMLInputElement>(null);
   
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -33,7 +33,6 @@ export default function Launch() {
     hash,
   });
 
-  // Generate verification code
   const generateVerificationCode = () => {
     if (!agentName.trim()) {
       alert('Please enter agent name');
@@ -41,21 +40,18 @@ export default function Launch() {
     }
     const random = Math.random().toString(36).substring(7);
     setVerificationCode(`Verifying AgentPump: ${random}`);
+    setStep(2);
   };
 
-  // Handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'coin' | 'banner') => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size
-    const maxSize = type === 'coin' ? 15 * 1024 * 1024 : 15 * 1024 * 1024; // 15MB
-    if (file.size > maxSize) {
-      alert(`File size must be less than ${maxSize / 1024 / 1024}MB`);
+    if (file.size > 15 * 1024 * 1024) {
+      alert('File size must be less than 15MB');
       return;
     }
 
-    // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
     if (!validTypes.includes(file.type)) {
       alert('Please upload a valid image file (JPG, PNG, or GIF)');
@@ -64,17 +60,11 @@ export default function Launch() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64String = reader.result as string;
-      if (type === 'coin') {
-        setCoinImage(base64String);
-      } else {
-        setBannerImage(base64String);
-      }
+      setCoinImage(reader.result as string);
     };
     reader.readAsDataURL(file);
   };
 
-  // Verify Moltbook post
   const verifyMoltbook = async () => {
     if (!address) {
       alert('Please connect your wallet');
@@ -86,9 +76,8 @@ export default function Launch() {
       return;
     }
 
-    // Validate symbol ends with "moltpump"
     if (!tokenSymbol.toUpperCase().endsWith('MOLTPUMP')) {
-      alert('Token symbol must end with "MOLTPUMP" (e.g., EVAMOLTPUMP)');
+      alert('Token symbol must end with "MOLTPUMP"');
       return;
     }
 
@@ -106,7 +95,6 @@ export default function Launch() {
       const newDeadline = Math.floor(Date.now() / 1000) + 3600;
       setDeadline(newDeadline);
 
-      // Calculate devBuyTokens for signature (same calculation as launch)
       const devBuyEth = devBuyAmount && parseFloat(devBuyAmount) > 0 ? parseEther(devBuyAmount) : 0n;
       const devBuyTokens = devBuyEth > 0n ? (devBuyEth * 1000n) / parseEther('1') : 0n;
 
@@ -130,6 +118,7 @@ export default function Launch() {
       if (data.success) {
         setSignature(data.signature);
         setIsVerified(true);
+        setStep(3);
       } else {
         alert(data.error || 'Verification failed');
       }
@@ -140,7 +129,6 @@ export default function Launch() {
     }
   };
 
-  // Launch token
   const launchToken = async () => {
     if (!address || !signature) {
       alert('Missing signature or wallet connection');
@@ -157,7 +145,6 @@ export default function Launch() {
       const devBuyEth = devBuyAmount && parseFloat(devBuyAmount) > 0 ? parseEther(devBuyAmount) : 0n;
       const totalValue = launchFee + devBuyEth;
       
-      // Convert devBuyAmount from ETH to token amount (approximate: 1 ETH = 1000 tokens initially)
       const devBuyTokens = devBuyEth > 0n ? (devBuyEth * 1000n) / parseEther('1') : 0n;
       
       writeContract({
@@ -183,349 +170,300 @@ export default function Launch() {
   const totalRequired = 0.005 + (parseFloat(devBuyAmount) || 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-pink-50 py-10 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link href="/" className="text-blue-600 underline mb-4 inline-block">
-            ← Back to Home
+    <main className="min-h-screen bg-dark-bg">
+      {/* Navigation */}
+      <nav className="border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-4">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <span className="text-2xl">🤖</span>
+            </div>
+            <h1 className="text-2xl font-display font-bold text-gradient">
+              AgentPump
+            </h1>
           </Link>
-          <h1 className="text-5xl font-black mb-2">🚀 Create Coin</h1>
-          <p className="text-gray-600">Launch your AI agent token on AgentPump</p>
         </div>
+      </nav>
 
-        {!isConnected && (
-          <div className="bg-red-100 p-4 border-4 border-red-500 mb-6 rounded-lg">
-            <p className="font-bold">⚠️ Please connect your wallet first!</p>
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-12 text-center">
+            <h1 className="text-display-lg font-display mb-4">
+              🚀 Launch Your <span className="text-gradient">Agent Token</span>
+            </h1>
+            <p className="text-body-lg text-dark-text-secondary">
+              Create a token for your AI Agent in three simple steps
+            </p>
           </div>
-        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Form */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Coin Details Section */}
-            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
-              <h2 className="text-2xl font-black mb-4">Coin Details</h2>
-              <p className="text-sm text-gray-600 mb-4">Choose carefully, these can't be changed once the coin is created</p>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Moltbook Agent Name *</label>
-                  <input 
-                    className="border-2 border-black p-3 w-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g. Eva" 
-                    value={agentName}
-                    onChange={(e) => setAgentName(e.target.value)} 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold mb-2">Coin Name *</label>
-                  <input 
-                    className="border-2 border-black p-3 w-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g. Eva Agent Token" 
-                    value={tokenName}
-                    onChange={(e) => setTokenName(e.target.value)} 
-                    maxLength={50}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Max 50 characters</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold mb-2">Ticker *</label>
-                  <div className="flex items-center gap-2">
-                    <input 
-                      className="border-2 border-black p-3 flex-1 text-lg uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g. EVAMOLTPUMP" 
-                      value={tokenSymbol}
-                      onChange={(e) => setTokenSymbol(e.target.value.toUpperCase())}
-                      maxLength={10}
-                    />
-                    <span className="text-sm font-bold text-gray-600">MOLTPUMP</span>
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center mb-12">
+            {[
+              { num: 1, label: 'Agent Info' },
+              { num: 2, label: 'Verify' },
+              { num: 3, label: 'Launch' }
+            ].map((s, i) => (
+              <div key={s.num} className="flex items-center">
+                <div className={`flex flex-col items-center ${step >= s.num ? 'opacity-100' : 'opacity-40'}`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg mb-2 ${
+                    step >= s.num 
+                      ? 'bg-gradient-primary text-white' 
+                      : 'bg-dark-card border border-dark-border text-dark-text-secondary'
+                  }`}>
+                    {s.num}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Must end with MOLTPUMP (max 10 characters)</p>
-                  {tokenSymbol && !tokenSymbol.endsWith('MOLTPUMP') && (
-                    <p className="text-xs text-red-600 mt-1">⚠️ Symbol must end with MOLTPUMP</p>
-                  )}
+                  <span className="text-body-sm text-dark-text-secondary">{s.label}</span>
                 </div>
+                {i < 2 && (
+                  <div className={`w-24 h-0.5 mx-4 mb-8 ${
+                    step > s.num ? 'bg-primary' : 'bg-dark-border'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Step 1: Agent Info */}
+          {step === 1 && (
+            <Card className="max-w-2xl mx-auto">
+              <h2 className="text-display-sm font-display mb-6">
+                Agent Information
+              </h2>
+
+              <div className="space-y-6">
+                <Input
+                  label="Moltbook Agent Name *"
+                  placeholder="e.g. Eva"
+                  value={agentName}
+                  onChange={(e) => setAgentName(e.target.value)}
+                  helperText="Your agent's name on Moltbook"
+                />
+
+                <Input
+                  label="Token Name *"
+                  placeholder="e.g. Eva Agent Token"
+                  value={tokenName}
+                  onChange={(e) => setTokenName(e.target.value)}
+                  maxLength={50}
+                  helperText="Max 50 characters"
+                />
+
+                <Input
+                  label="Token Symbol *"
+                  placeholder="e.g. EVAMOLTPUMP"
+                  value={tokenSymbol}
+                  onChange={(e) => setTokenSymbol(e.target.value.toUpperCase())}
+                  maxLength={10}
+                  helperText="Must end with MOLTPUMP"
+                  error={tokenSymbol && !tokenSymbol.endsWith('MOLTPUMP') ? 'Symbol must end with MOLTPUMP' : undefined}
+                />
 
                 <div>
-                  <label className="block text-sm font-bold mb-2">Description (Optional)</label>
-                  <textarea 
-                    className="border-2 border-black p-3 w-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Describe your agent token..." 
+                  <label className="block text-body-sm font-medium mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    className="input min-h-[100px]"
+                    placeholder="Describe your agent..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
                     maxLength={500}
                   />
-                  <p className="text-xs text-gray-500 mt-1">{description.length}/500 characters</p>
+                  <p className="text-caption text-dark-text-secondary mt-1">
+                    {description.length}/500 characters
+                  </p>
                 </div>
-              </div>
-            </div>
 
-            {/* Image Upload Section */}
-            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
-              <h2 className="text-2xl font-black mb-4">Coin Image</h2>
-              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold mb-2">Coin Image *</label>
-                  <div className="border-2 border-dashed border-black p-6 text-center">
-                    {coinImage ? (
-                      <div className="space-y-2">
-                        <img src={coinImage} alt="Coin preview" className="w-32 h-32 mx-auto object-cover rounded-lg border-2 border-black" />
-                        <button
-                          onClick={() => {
-                            setCoinImage(null);
-                            if (coinImageInputRef.current) coinImageInputRef.current.value = '';
-                          }}
-                          className="text-sm text-red-600 underline"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="mb-2">Select image or drag and drop</p>
-                        <input
-                          ref={coinImageInputRef}
-                          type="file"
-                          accept="image/jpeg,image/jpg,image/png,image/gif"
-                          onChange={(e) => handleImageUpload(e, 'coin')}
-                          className="hidden"
-                          id="coin-image"
-                        />
-                        <label
-                          htmlFor="coin-image"
-                          className="cursor-pointer bg-blue-500 text-white px-4 py-2 rounded border-2 border-black font-bold hover:bg-blue-400 inline-block"
-                        >
-                          Choose File
-                        </label>
-                        <p className="text-xs text-gray-500 mt-2">Max 15MB. JPG, PNG, or GIF. Min 1000x1000px, 1:1 square recommended</p>
-                      </div>
+                  <label className="block text-body-sm font-medium mb-2">
+                    Agent Image (Optional)
+                  </label>
+                  <div className="flex items-center gap-4">
+                    {coinImage && (
+                      <img
+                        src={coinImage}
+                        alt="Preview"
+                        className="w-20 h-20 rounded-lg object-cover border border-dark-border"
+                      />
                     )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold mb-2">Banner Image (Optional)</label>
-                  <div className="border-2 border-dashed border-black p-6 text-center">
-                    {bannerImage ? (
-                      <div className="space-y-2">
-                        <img src={bannerImage} alt="Banner preview" className="w-full h-32 object-cover rounded-lg border-2 border-black" />
-                        <button
-                          onClick={() => {
-                            setBannerImage(null);
-                            if (bannerImageInputRef.current) bannerImageInputRef.current.value = '';
-                          }}
-                          className="text-sm text-red-600 underline"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <input
-                          ref={bannerImageInputRef}
-                          type="file"
-                          accept="image/jpeg,image/jpg,image/png,image/gif"
-                          onChange={(e) => handleImageUpload(e, 'banner')}
-                          className="hidden"
-                          id="banner-image"
-                        />
-                        <label
-                          htmlFor="banner-image"
-                          className="cursor-pointer bg-gray-200 text-black px-4 py-2 rounded border-2 border-black font-bold hover:bg-gray-300 inline-block"
-                        >
-                          Choose File
-                        </label>
-                        <p className="text-xs text-gray-500 mt-2">Max 15MB. JPG, PNG, or GIF</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Social Links Section */}
-            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
-              <h2 className="text-2xl font-black mb-4">Add Social Links (Optional)</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Twitter/X</label>
-                  <input 
-                    className="border-2 border-black p-3 w-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://twitter.com/yourhandle" 
-                    value={twitterLink}
-                    onChange={(e) => setTwitterLink(e.target.value)} 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-2">Telegram</label>
-                  <input 
-                    className="border-2 border-black p-3 w-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://t.me/yourchannel" 
-                    value={telegramLink}
-                    onChange={(e) => setTelegramLink(e.target.value)} 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-2">Website</label>
-                  <input 
-                    className="border-2 border-black p-3 w-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://yourwebsite.com" 
-                    value={websiteLink}
-                    onChange={(e) => setWebsiteLink(e.target.value)} 
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Dev Buy Section */}
-            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
-              <h2 className="text-2xl font-black mb-4">Initial Buy (Optional)</h2>
-              <div>
-                <label className="block text-sm font-bold mb-2">Dev Buy Amount (ETH)</label>
-                <input 
-                  className="border-2 border-black p-3 w-full text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  type="number"
-                  step="0.001"
-                  placeholder="0.0" 
-                  value={devBuyAmount}
-                  onChange={(e) => setDevBuyAmount(e.target.value)} 
-                />
-                <p className="text-xs text-gray-500 mt-1">Optional: Buy tokens at launch (max 2.5% of supply)</p>
-              </div>
-            </div>
-
-            {/* Moltbook Verification Section */}
-            <div className="bg-yellow-100 border-4 border-yellow-600 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg">
-              <h2 className="text-2xl font-black mb-4">🔐 Moltbook Verification</h2>
-              <p className="text-sm mb-4">Prove you own the agent by posting a verification code on Moltbook</p>
-              
-              {!verificationCode ? (
-                <button
-                  onClick={generateVerificationCode}
-                  disabled={!agentName.trim()}
-                  className="w-full bg-yellow-400 p-4 border-2 border-black font-bold hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Generate Verification Code
-                </button>
-              ) : (
-                <div className="space-y-4">
-                  <div className="bg-white p-4 border-2 border-black">
-                    <p className="text-sm font-bold mb-2">Post this EXACTLY on Moltbook:</p>
-                    <div className="bg-gray-100 p-3 border border-black font-mono text-sm select-all cursor-copy break-all">
-                      {verificationCode}
-                    </div>
-                  </div>
-                  {!isVerified ? (
-                    <button
-                      onClick={verifyMoltbook}
-                      disabled={isVerifying || !isConnected}
-                      className="w-full bg-green-500 text-white p-4 border-2 border-black font-bold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                    <Button
+                      variant="secondary"
+                      onClick={() => coinImageInputRef.current?.click()}
                     >
-                      {isVerifying ? '⏳ Verifying...' : '✅ Verify on Moltbook'}
-                    </button>
-                  ) : (
-                    <div className="bg-green-200 p-4 border-2 border-green-600">
-                      <p className="font-bold text-green-800">✅ Verified!</p>
-                    </div>
-                  )}
+                      {coinImage ? 'Change Image' : 'Upload Image'}
+                    </Button>
+                    <input
+                      ref={coinImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </div>
+                  <p className="text-caption text-dark-text-secondary mt-2">
+                    JPG, PNG, or GIF. Max 15MB
+                  </p>
+                </div>
+
+                <Input
+                  label="Initial Buy Amount (ETH)"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.1"
+                  value={devBuyAmount}
+                  onChange={(e) => setDevBuyAmount(e.target.value)}
+                  helperText="Optional: Buy tokens immediately after launch"
+                />
+
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  onClick={generateVerificationCode}
+                  disabled={!agentName || !tokenName || !tokenSymbol || !tokenSymbol.endsWith('MOLTPUMP')}
+                >
+                  Continue to Verification
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Step 2: Verify */}
+          {step === 2 && (
+            <Card className="max-w-2xl mx-auto">
+              <div className="text-center mb-6">
+                <h2 className="text-display-sm font-display mb-2">
+                  Verify Your Identity
+                </h2>
+                <p className="text-body text-dark-text-secondary">
+                  Post this code on Moltbook to prove ownership
+                </p>
+              </div>
+
+              <div className="bg-dark-bg border border-primary rounded-lg p-6 mb-6">
+                <p className="text-caption text-dark-text-secondary mb-2">
+                  Verification Code:
+                </p>
+                <p className="text-body-lg font-mono text-primary break-all">
+                  {verificationCode}
+                </p>
+              </div>
+
+              <div className="bg-dark-card/50 border border-dark-border rounded-lg p-4 mb-6">
+                <h3 className="text-h4 font-display mb-2">Instructions:</h3>
+                <ol className="space-y-2 text-body-sm text-dark-text-secondary list-decimal list-inside">
+                  <li>Copy the verification code above</li>
+                  <li>Post it on your Moltbook agent profile</li>
+                  <li>Come back and click "Verify" below</li>
+                </ol>
+              </div>
+
+              <div className="flex gap-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setStep(1)}
+                  className="flex-1"
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={verifyMoltbook}
+                  loading={isVerifying}
+                  disabled={!isConnected}
+                  className="flex-1"
+                >
+                  {isVerifying ? 'Verifying...' : 'Verify & Continue'}
+                </Button>
+              </div>
+
+              {!isConnected && (
+                <div className="mt-4 p-4 bg-error/10 border border-error/20 rounded-lg">
+                  <p className="text-body-sm text-error">
+                    ⚠️ Please connect your wallet to continue
+                  </p>
                 </div>
               )}
-            </div>
-          </div>
+            </Card>
+          )}
 
-          {/* Right Column: Preview */}
-          <div className="lg:col-span-1">
-            <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6 rounded-lg sticky top-4">
-              <h2 className="text-2xl font-black mb-4">Preview</h2>
-              
-              <div className="space-y-4">
-                {/* Banner */}
-                {bannerImage && (
-                  <img src={bannerImage} alt="Banner" className="w-full h-32 object-cover rounded border-2 border-black" />
-                )}
-                
-                {/* Coin Image */}
-                <div className="flex items-center gap-4">
-                  {coinImage ? (
-                    <img src={coinImage} alt="Coin" className="w-20 h-20 object-cover rounded-full border-2 border-black" />
-                  ) : (
-                    <div className="w-20 h-20 bg-gray-200 rounded-full border-2 border-black flex items-center justify-center">
-                      <span className="text-2xl">?</span>
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="text-xl font-black">{tokenName || 'Coin Name'}</h3>
-                    <p className="text-sm text-gray-600">{tokenSymbol || 'SYMBOL'}</p>
-                  </div>
+          {/* Step 3: Launch */}
+          {step === 3 && (
+            <Card className="max-w-2xl mx-auto">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-4xl">✅</span>
                 </div>
-
-                {/* Description */}
-                {description && (
-                  <div>
-                    <p className="text-sm">{description}</p>
-                  </div>
-                )}
-
-                {/* Social Links */}
-                {(twitterLink || telegramLink || websiteLink) && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-bold">Links:</p>
-                    {twitterLink && <p className="text-xs text-blue-600">🐦 Twitter</p>}
-                    {telegramLink && <p className="text-xs text-blue-600">📱 Telegram</p>}
-                    {websiteLink && <p className="text-xs text-blue-600">🌐 Website</p>}
-                  </div>
-                )}
-
-                {/* Cost Summary */}
-                <div className="border-t-2 border-black pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Launch Fee:</span>
-                    <span className="font-bold">0.005 ETH</span>
-                  </div>
-                  {devBuyAmount && parseFloat(devBuyAmount) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Dev Buy:</span>
-                      <span className="font-bold">{devBuyAmount} ETH</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-lg font-black border-t-2 border-black pt-2">
-                    <span>Total:</span>
-                    <span>{totalRequired.toFixed(6)} ETH</span>
-                  </div>
-                </div>
-
-                {/* Launch Button */}
-                <button
-                  onClick={launchToken}
-                  disabled={!isConnected || !isVerified || isPending || isConfirming || isSuccess || !coinImage || !tokenName || !tokenSymbol || !tokenSymbol.endsWith('MOLTPUMP')}
-                  className="w-full bg-green-500 text-white p-4 border-2 border-black font-bold text-xl hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isPending || isConfirming ? '⏳ PROCESSING...' : isSuccess ? '✅ LAUNCHED!' : '🚀 CREATE COIN'}
-                </button>
-
-                {error && (
-                  <div className="bg-red-100 p-3 border-2 border-red-500 rounded">
-                    <p className="text-sm text-red-800">Error: {error.message}</p>
-                  </div>
-                )}
-
-                {isSuccess && hash && (
-                  <div className="bg-green-200 p-3 border-2 border-green-600 rounded">
-                    <p className="font-bold text-green-800">✅ Token Launched!</p>
-                    <Link href={`/token/${hash}`} className="text-sm text-blue-600 underline">
-                      View Token →
-                    </Link>
-                  </div>
-                )}
+                <h2 className="text-display-sm font-display mb-2">
+                  Ready to Launch!
+                </h2>
+                <p className="text-body text-dark-text-secondary">
+                  Review your token details and deploy
+                </p>
               </div>
-            </div>
-          </div>
+
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between py-3 border-b border-dark-border">
+                  <span className="text-body-sm text-dark-text-secondary">Agent Name</span>
+                  <span className="text-body font-medium">{agentName}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-dark-border">
+                  <span className="text-body-sm text-dark-text-secondary">Token Name</span>
+                  <span className="text-body font-medium">{tokenName}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-dark-border">
+                  <span className="text-body-sm text-dark-text-secondary">Token Symbol</span>
+                  <span className="text-body font-mono">${tokenSymbol}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-dark-border">
+                  <span className="text-body-sm text-dark-text-secondary">Initial Buy</span>
+                  <span className="text-body font-mono">{devBuyAmount || '0'} ETH</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-dark-border">
+                  <span className="text-body-sm text-dark-text-secondary">Launch Fee</span>
+                  <span className="text-body font-mono">0.005 ETH</span>
+                </div>
+                <div className="flex justify-between py-3">
+                  <span className="text-body font-medium">Total Required</span>
+                  <span className="text-body-lg font-mono text-primary">{totalRequired.toFixed(4)} ETH</span>
+                </div>
+              </div>
+
+              {isSuccess ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">🎉</div>
+                  <h3 className="text-h4 font-display mb-2">Token Launched!</h3>
+                  <p className="text-body text-dark-text-secondary mb-6">
+                    Your agent token has been successfully deployed
+                  </p>
+                  <Link href="/">
+                    <Button variant="primary">View All Tokens</Button>
+                  </Link>
+                </div>
+              ) : (
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  onClick={launchToken}
+                  loading={isPending || isConfirming}
+                  disabled={!isVerified || !isConnected}
+                >
+                  {isPending || isConfirming ? 'Launching...' : '🚀 Launch Token'}
+                </Button>
+              )}
+
+              {error && (
+                <div className="mt-4 p-4 bg-error/10 border border-error/20 rounded-lg">
+                  <p className="text-body-sm text-error">
+                    ⚠️ {error.message}
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
