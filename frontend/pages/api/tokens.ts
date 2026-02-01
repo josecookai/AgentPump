@@ -19,11 +19,22 @@ interface TokenInfo {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') return res.status(405).end()
+  // Log request for debugging
+  console.log(`[${new Date().toISOString()}] Tokens API called:`, {
+    method: req.method,
+    chainId: req.query.chainId,
+  });
+
+  if (req.method !== 'GET') {
+    console.error('Invalid method:', req.method);
+    return res.status(405).json({ error: 'Method not allowed. Use GET.' });
+  }
 
   try {
     const chainId = parseInt(req.query.chainId as string) || 8453
     const chain = chainId === 84532 ? baseSepolia : base
+    
+    console.log(`Using chain: ${chain.name} (chainId: ${chainId})`);
     
     const client = createPublicClient({
       chain,
@@ -31,6 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     if (!FACTORY_ADDRESS || FACTORY_ADDRESS === '0x0000000000000000000000000000000000000000') {
+      console.warn('FACTORY_ADDRESS not configured, returning empty tokens list');
       return res.status(200).json({ tokens: [] })
     }
 
@@ -118,18 +130,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           progress,
           graduated: graduated as boolean,
         })
-      } catch (err) {
-        console.error(`Error processing token ${log.args.token}:`, err)
-        // Continue with next token
+      } catch (err: any) {
+        console.error(`Error processing token ${log.args.token}:`, {
+          error: err.message,
+          tokenAddress: log.args.token,
+        });
+        // Continue with next token - don't fail entire request
       }
     }
 
     // Sort by market cap descending
     tokens.sort((a, b) => parseFloat(b.marketCap) - parseFloat(a.marketCap))
 
+    console.log(`Successfully fetched ${tokens.length} tokens`);
     res.status(200).json({ tokens })
   } catch (error: any) {
-    console.error('Error fetching tokens:', error)
-    res.status(500).json({ error: error.message || 'Internal Server Error' })
+    // Enhanced error logging
+    console.error(`[${new Date().toISOString()}] Error fetching tokens:`, {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      chainId: req.query.chainId,
+    });
+
+    // Handle specific error types
+    if (error.name === 'RpcRequestError' || error.code === 'NETWORK_ERROR') {
+      return res.status(503).json({ 
+        error: 'Network error',
+        message: 'Unable to connect to blockchain. Please try again later.'
+      });
+    }
+
+    if (error.message?.includes('timeout')) {
+      return res.status(504).json({ 
+        error: 'Request timeout',
+        message: 'Blockchain request timed out. Please try again.'
+      });
+    }
+
+    // Generic error response
+    res.status(500).json({ 
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred while fetching tokens. Please try again.',
+      // Only include error message in development
+      ...(process.env.NODE_ENV === 'development' && { details: error.message })
+    });
   }
 }
