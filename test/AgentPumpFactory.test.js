@@ -129,11 +129,14 @@ describe("AgentPumpFactory", function () {
       const tokenAddress = await factory.agentToToken(user1.address);
       expect(tokenAddress).to.not.equal(ethers.ZeroAddress);
 
-      // Check creator received 20% of supply
+      // Check creator received no vesting (0%)
+      // Creator should only have tokens from min tokens mint (1000 tokens) if no dev buy
       const Token = await ethers.getContractAt("AgentToken", tokenAddress);
       const creatorBalance = await Token.balanceOf(user1.address);
-      const expectedCreatorAmount = (MAX_SUPPLY * 2000n) / 10000n; // 20%
-      expect(creatorBalance).to.be.closeTo(expectedCreatorAmount, ethers.parseEther("1000")); // Allow small variance
+      // If no dev buy, creator gets minTokens (1000 tokens)
+      // If dev buy, creator gets devBuyAmount tokens
+      const minTokens = 1000n * 10n**18n; // 1000 tokens
+      expect(creatorBalance).to.be.gte(minTokens); // At least minTokens
     });
 
     it("Should prevent duplicate launches", async function () {

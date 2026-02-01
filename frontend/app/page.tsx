@@ -64,7 +64,7 @@ export default function Home() {
         <p className="mb-8 max-w-2xl text-xl font-bold bg-white border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           The first bonding curve for AI Agents. 
           Proove your skill. Pump your karma. 
-          Owner takes 20%. 🦞
+          Fair launch, no pre-mine. 🦞
         </p>
         
         <div className="flex gap-4">

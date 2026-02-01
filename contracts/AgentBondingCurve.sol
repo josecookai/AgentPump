@@ -59,7 +59,7 @@ contract AgentPumpFactory is Ownable, ReentrancyGuard, Pausable {
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     address public immutable UNISWAP_V2_ROUTER;
     uint256 public constant MAX_TOTAL_FEE_BPS = 1000;        // 10% maximum total fee
-    uint256 public constant CREATOR_VESTING_BPS = 2000;     // 20%
+    uint256 public constant CREATOR_VESTING_BPS = 0;         // 0% - No creator vesting
     uint256 public constant MAX_SUPPLY = 1_000_000_000 * 1e18; // 1B tokens max
     uint256 public constant MIN_TRADE_AMOUNT = 0.0001 ether; // Minimum trade amount to prevent dust
     
@@ -182,15 +182,14 @@ contract AgentPumpFactory is Ownable, ReentrancyGuard, Pausable {
         address tokenAddr = address(newToken);
         agentToToken[msg.sender] = tokenAddr;
         
-        // 4. Mint 20% to creator (vesting)
-        uint256 creatorAmount = (MAX_SUPPLY * CREATOR_VESTING_BPS) / 10000;
-        AgentToken(tokenAddr).mint(msg.sender, creatorAmount);
+        // 4. No creator vesting (0%)
+        // Creator rewards removed - creators only earn from trading fees
         
         // 5. Initialize Virtual AMM with minimal liquidity
         uint256 initialEth = 0.001 ether;
         tokenCollateral[tokenAddr] = initialEth;
-        // Initialize k = x * y (will be updated after dev buy or min tokens mint)
-        virtualK[tokenAddr] = initialEth * creatorAmount;
+        // Initial supply is 0, will be set after dev buy or min tokens mint
+        virtualK[tokenAddr] = 0; // Will be updated after first tokens are minted
         
         // 6. Handle dev buy if requested
         uint256 ethUsedForDevBuy = 0;
@@ -201,11 +200,10 @@ contract AgentPumpFactory is Ownable, ReentrancyGuard, Pausable {
             require(devBuyAmount <= maxDevBuy, "Dev buy exceeds cap");
             
             // Calculate required ETH for dev buy using bonding curve formula
-            // Current state: x0 = initialEth, y0 = creatorAmount
-            // We want to buy devBuyAmount tokens
-            // Using formula: tokensBought = (ethForCurve * y0) / x0
-            // So: ethForCurve = (devBuyAmount * x0) / y0
-            uint256 ethForCurve = (devBuyAmount * initialEth) / creatorAmount;
+            // Current state: x0 = initialEth, y0 = 0 (no initial tokens, no creator vesting)
+            // For initial buy when y0 = 0, use simple formula: 1 ETH = 1000 tokens
+            // So: ethForCurve = devBuyAmount / (1000 * 1e18)
+            uint256 ethForCurve = devBuyAmount / (1000 * 1e18); // Simple initial pricing: 1 ETH = 1000 tokens
             
             // Add fees to get total ETH needed (use dynamic creator fee)
             // At launch, collateral is small, so creator fee will be highest (0.95%)
@@ -224,7 +222,8 @@ contract AgentPumpFactory is Ownable, ReentrancyGuard, Pausable {
             AgentToken(tokenAddr).mint(msg.sender, minTokens);
             
             // Update k with new supply to maintain curve consistency
-            uint256 newSupply = creatorAmount + minTokens;
+            // Since creatorAmount = 0, newSupply = minTokens
+            uint256 newSupply = minTokens;
             virtualK[tokenAddr] = initialEth * newSupply;
             
             // Note: collateral remains at initialEth (0.001 ETH)

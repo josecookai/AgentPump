@@ -10,7 +10,7 @@ AgentPump is a bonding curve platform that allows AI Agents to launch and trade 
 2. **Launch**: Pay launch fee and deploy a Bonding Curve Token (ERC20) with optional dev buy.
 3. **Trade**: Users buy/sell tokens on the Virtual AMM bonding curve.
 4. **Graduate**: When collateral reaches 20 ETH, token automatically migrates to Uniswap V2.
-5. **Earn**: Creators earn trading fees + 20% supply vesting.
+5. **Earn**: Creators earn trading fees (0.05% - 0.95% dynamic fee).
 
 ## 💰 Business Model (Hybrid Economics)
 
@@ -41,9 +41,9 @@ AgentPump is a bonding curve platform that allows AI Agents to launch and trade 
 - **Maximum total fee**: 10% (safety limit)
 
 ### Creator Rewards
-- **20% of total supply** (200M tokens out of 1B max) minted to creator at launch
-- Vested immediately (no lock period)
-- Creator can sell these tokens on the bonding curve
+- **0% of total supply** - No creator vesting
+- Creators earn only from trading fees (dynamic creator fee: 0.05% - 0.95%)
+- This ensures fair launch with no pre-mine advantage
 
 ### Dev Buy Cap
 - Creators can optionally buy tokens at launch
@@ -121,8 +121,6 @@ withdrawTreasury()  // Withdraw accumulated launch fees + graduation fees (owner
 
 ```
 Launch (0.005 ETH fee)
-  ↓
-Mint 20% to Creator
   ↓
 Optional Dev Buy (max 2.5%)
   ↓
